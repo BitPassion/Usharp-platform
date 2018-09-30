@@ -4,6 +4,8 @@ USharp is a plugin for Unreal Engine 4 which allows for programming in C#.
 
 This project adapts various parts of mono-ue https://mono-ue.github.io/ and is roughly similar but has support for both mono and the .NET Framework. The C++ code used is mostly PInvoke methods and the equivalent mono-ue backend code is [mostly written in C#](https://github.com/pixeltris/USharp/tree/master/UnrealEngine.Runtime/UnrealEngine.Runtime/Internal).
 
+_This project currently isn't usable for most use cases as the code generator is broken._
+
 # Features
 
 - Hotreload
@@ -18,6 +20,7 @@ This project adapts various parts of mono-ue https://mono-ue.github.io/ and is r
 - There is currently too much marshaling on structs / collections (list, map, set). Marshaling needs to be redesigned to avoid copies of entire collections / structs on trivial calls between C# / native code. Additionally marshaling of delegates needs to be redesigned (various issues such as being referenced as a copy of the delegate).
 - There currently isn't a seperate editor/runtime module which may have a variety of issues (code generator output, differences in shipping / editor builds). USharp.uplugin "Type" would need to be manually changed to "Runtime" for a shipping build.
 - **The code generator is currently broken (so no access to AActor or anything that isn't inside the UnrealEngine.Runtime project)**
+- FText currently isn't supported (TODO)
 
 # Setup
 
@@ -58,6 +61,7 @@ _This is a very rough guide. TODO: Improve once the code generator is fixed. (Al
 - You can call the C# project whatever. The output assembly name must be ProjectName-Managed and the output type should be Class Library (dll).
 - The output path of the C# project should point to the Managed/Binaries path as seen below.
 - Add UnrealEngine.Runtime.dll as a reference from the USharp unreal engine plugins folder.
+- Add a post-build event to your C# project "C:/XXXXXX/UnrealEngine.AssemblyRewriter.exe" "$(TargetPath)" (this is required to weave the IL - remember to replace the "XXXXXX" to the full path of the AssemblyRewriter.exe)
 - **TODO: References to generated engine dlls / generated C++ game code wrappers for C#**
 
 **Managed game project folder structure**
@@ -67,6 +71,14 @@ _This is a very rough guide. TODO: Improve once the code generator is fixed. (Al
 |      +-- Binaries
 |      +-- ProjectName - Create a C# project in this folder
 ```
+
+# TODO
+
+- Add a build tool helper for automatically building the C++/C# projects
+- Fix the code generator
+- Add FText
+- Lots of work to do on improving marshaling
+- ???
 
 ---
 
