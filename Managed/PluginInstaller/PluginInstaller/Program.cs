@@ -227,14 +227,7 @@ namespace PluginInstaller
         {
             if ((overwrite || !File.Exists(destFileName)) && File.Exists(sourceFileName))
             {
-                try
-                {
-                    File.Copy(sourceFileName, destFileName, overwrite);
-                }
-                catch
-                {
-                    Console.WriteLine("Failed to copy to '{0}'", destFileName);
-                }
+                File.Copy(sourceFileName, destFileName, overwrite);
             }
         }
 
@@ -445,6 +438,26 @@ namespace PluginInstaller
         {
             try
             {
+                string baseMicrosoftKeyPath = @"SOFTWARE\WOW6432Node\Microsoft";
+                string visualStudioRegistryKeyPath = baseMicrosoftKeyPath + @"\VisualStudio\SxS\VS7";
+
+                //Try Obtaining the VS version of MSBuild First
+                using (RegistryKey key = Registry.LocalMachine.OpenSubKey(visualStudioRegistryKeyPath))
+                {
+                    if (key != null)
+                    {
+                        string path = key.GetValue("15.0") as string;
+                        if (!string.IsNullOrEmpty(path))
+                        {
+                            path = Path.Combine(path, "MSBuild", "15.0", "Bin", "msbuild.exe");
+                            if (File.Exists(path))
+                            {
+                                return path;
+                            }
+                        }
+                    }
+                }
+
                 using (RegistryKey key = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\MSBUILD\ToolsVersions\4.0"))
                 {
                     string path = key.GetValue("MSBuildToolsPath") as string;
@@ -564,7 +577,6 @@ namespace PluginInstaller
             bool shippingBuild = keyValues.ContainsKey("shipping");
             bool x86Build = keyValues.ContainsKey("x86");
             bool skipCopy = keyValues.ContainsKey("nocopy");
-            bool skipCleanup = keyValues.ContainsKey("noclean");
 
             string pluginName = "USharp";
             //string targetPrefix = "UE4Editor";
@@ -655,17 +667,10 @@ namespace PluginInstaller
                     string[] copyDirs = { "Binaries", "Intermediate" };
                     foreach (string dir in copyDirs)
                     {
-                        if (Directory.Exists(Path.Combine(outputDir, dir)))
+                        if(!Directory.Exists(Path.Combine(outputDir, dir)))
                         {
                             CopyFilesRecursive(new DirectoryInfo(Path.Combine(outputDir, dir)),
-                                new DirectoryInfo(Path.Combine(enginePluginDir, dir)), true);
-
-                            // Also copy to the local path if outside of the engine?
-                            //if (!isInsideEngineFolder)
-                            //{
-                            //    CopyFilesRecursive(new DirectoryInfo(Path.Combine(outputDir, dir)),
-                            //        new DirectoryInfo(Path.Combine(localPluginDir, dir)), true);
-                            //}
+                            new DirectoryInfo(Path.Combine(enginePluginDir, dir)), true);
                         }
                     }
 
@@ -694,18 +699,15 @@ namespace PluginInstaller
                 {
                 }
 
-                if (!skipCleanup)
+                try
                 {
-                    try
+                    if (!Directory.Exists(outputDir))
                     {
-                        if (!Directory.Exists(outputDir))
-                        {
-                            Directory.Delete(outputDir);
-                        }
+                        Directory.Delete(outputDir);
                     }
-                    catch
-                    {
-                    }
+                }
+                catch
+                {
                 }
             }
         }
