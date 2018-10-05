@@ -332,12 +332,15 @@ namespace UnrealEngine.Runtime
   </PropertyGroup>
   <ItemGroup>
   </ItemGroup>";
-            _fileContents +=
-@"<ItemGroup>
+            if (insideEngine)
+            {
+                _fileContents +=
+  @"<ItemGroup>
     <Reference Include=""" + "UnrealEngine.Runtime" + @""">
       <HintPath>" + _ue4RuntimePath + @"</HintPath>
     </Reference>
   </ItemGroup>";
+            }
             _fileContents +=
   @"<Import Project=""$(MSBuildToolsPath)\Microsoft.CSharp.targets"" />
 </Project>";

@@ -351,24 +351,14 @@ namespace UnrealEngine.Runtime
                         }
                         else
                         {
-                            if (originalOwner != owner && !isInterfaceImplementation &&
-                                originalOwner.HasAnyClassFlags(EClassFlags.Interface))
-                            {
-                                // For classes which implement interfaces they do not have their own UFunction entry and therefore the
-                                // target UFunction will belong to the implemented interface UClass.                            
-                                // TODO: Virtual functions possible here?
-                            }
-                            else
-                            {
-                                // This have should been filtered out in CanExportFunction()
-                                Debug.Assert(originalOwner == owner || isInterfaceImplementation);
+                            // This have should been filtered out in CanExportFunction()
+                            Debug.Assert(originalOwner == owner || isInterfaceImplementation);
 
-                                // Explicit will have the _Implementation as virtual and the function declaration as
-                                // non-virtual (which is the same as C++)
-                                if (!Settings.UseExplicitImplementationMethods || isImplementationMethod)
-                                {
-                                    modifiers.Append(" virtual");
-                                }
+                            // Explicit will have the _Implementation as virtual and the function declaration as
+                            // non-virtual (which is the same as C++)
+                            if (!Settings.UseExplicitImplementationMethods || isImplementationMethod)
+                            {
+                                modifiers.Append(" virtual");
                             }
                         }
                     }
@@ -747,7 +737,7 @@ namespace UnrealEngine.Runtime
                 System.Diagnostics.Debug.Assert(paramNames.Count == 1);
             }
 
-            if (Settings.CheckObjectDestroyed && !isStatic &&
+            if (Settings.CheckObjectDestroyed && 
                 !function.HasAnyFunctionFlags(EFunctionFlags.Delegate | EFunctionFlags.MulticastDelegate))
             {
                 builder.AppendLine(Names.UObject_CheckDestroyed + "();");
@@ -881,20 +871,15 @@ namespace UnrealEngine.Runtime
                     UProperty parameter = param.Key;
                     string paramName = param.Value;
 
-                    // If this is function is collapsed into a setter property then we can skip the FromNative calls as there shouldn't be
-                    // anything we need to extract back out (if there is, then using a setter instead of a function is incorrect in that case)
-                    if (!isSetter)
+                    if (parameter.HasAnyPropertyFlags(EPropertyFlags.ReturnParm) || parameter == blueprintReturnProperty)
+                    {                        
+                        AppendPropertyFromNative(builder, parameter, functionName + "_" + paramName, Settings.VarNames.ParamsBuffer,
+                            GetTypeName(parameter, namespaces) + " " + Settings.VarNames.ReturnResult, ownerName, true, namespaces);
+                    }
+                    else if (parameter.HasAnyPropertyFlags(EPropertyFlags.ReferenceParm | EPropertyFlags.OutParm))
                     {
-                        if (parameter.HasAnyPropertyFlags(EPropertyFlags.ReturnParm) || parameter == blueprintReturnProperty)
-                        {
-                            AppendPropertyFromNative(builder, parameter, functionName + "_" + paramName, Settings.VarNames.ParamsBuffer,
-                                GetTypeName(parameter, namespaces) + " " + Settings.VarNames.ReturnResult, ownerName, true, namespaces);
-                        }
-                        else if (parameter.HasAnyPropertyFlags(EPropertyFlags.ReferenceParm | EPropertyFlags.OutParm))
-                        {
-                            AppendPropertyFromNative(builder, parameter, functionName + "_" + paramName, Settings.VarNames.ParamsBuffer,
-                                paramName, ownerName, true, namespaces);
-                        }
+                        AppendPropertyFromNative(builder, parameter, functionName + "_" + paramName, Settings.VarNames.ParamsBuffer,
+                            paramName, ownerName, true, namespaces);
                     }
 
                     if (!Settings.LazyFunctionParamInitDestroy && !parameter.HasAnyPropertyFlags(EPropertyFlags.NoDestructor))
@@ -913,7 +898,7 @@ namespace UnrealEngine.Runtime
                     Settings.VarNames.ParamsBuffer + ");");
             }
 
-            if (hasReturn)
+                if (hasReturn)
             {
                 builder.AppendLine("return " + Settings.VarNames.ReturnResult + ";");
             }

@@ -604,8 +604,7 @@ namespace UnrealEngine.Runtime
                     if (isCollection)
                     {
                         string collectionVarName = propertyName + Settings.VarNames.CollectionMarshaler;
-                        if (!property.HasAnyPropertyFlags(EPropertyFlags.ReferenceParm) ||
-                            property.HasAnyPropertyFlags(EPropertyFlags.ReturnParm) || toNative)
+                        if (!property.HasAnyPropertyFlags(EPropertyFlags.ReferenceParm) || toNative)
                         {
                             builder.AppendLine(marshalerName + " " + collectionVarName + collectionInstantiation);
                         }
@@ -677,6 +676,11 @@ namespace UnrealEngine.Runtime
                 // TODO
                 return null;
             }
+            if (property.PropertyType == EPropertyType.Interface)
+            {
+                // TODO "/Script/UnrealEd.PropertyEditorTestObject:BlendableInterface"
+                return null;
+            }
 
             switch (property.PropertyType)
             {
@@ -685,14 +689,7 @@ namespace UnrealEngine.Runtime
                 case EPropertyType.Str: return Names.FStringMarshaler;
                 case EPropertyType.Struct:
                     {
-                        UStruct unrealStruct = (property as UStructProperty).Struct;
-                        if (unrealStruct.PathName == "/Script/CoreUObject.SoftObjectPath")
-                        {
-                            // We should probably just add FromNative/ToNative methods to FSoftObjectPath instead of doing a path check
-                            // - Also how does this impact AssemblyRewriter?
-                            return Names.FSoftObjectPathMarshaler;
-                        }
-                        else if (IsClassOrStructAsClass(unrealStruct))
+                        if (IsClassOrStructAsClass((property as UStructProperty).Struct))
                         {
                             return Names.StructAsClassMarshaler + "<" + GetTypeName(property, namespaces) + ">";
                         }
@@ -705,12 +702,14 @@ namespace UnrealEngine.Runtime
                 case EPropertyType.Delegate:
                     {
                         string delegateTypeName = GetTypeName(property, namespaces);
-                        return Names.FDelegateMarshaler + "<" + delegateTypeName + ">";
+                        return Names.FDelegate + "<" + delegateTypeName + "." + Settings.VarNames.DelegateSignature + ">." +
+                            Settings.VarNames.DelegateMarshaler + "<" + delegateTypeName + ">";
                     }
                 case EPropertyType.MulticastDelegate:
                     {
                         string delegateTypeName = GetTypeName(property, namespaces);
-                        return Names.FMulticastDelegateMarshaler + "<" + delegateTypeName + ">";
+                        return Names.FMulticastDelegate + "<" + delegateTypeName + "." + Settings.VarNames.DelegateSignature + ">." +
+                            Settings.VarNames.DelegateMarshaler + "<" + delegateTypeName + ">";
                     }
                 case EPropertyType.Array:
                     {
@@ -778,7 +777,6 @@ namespace UnrealEngine.Runtime
                         }
                         return subclassOfMarshalerName + "<" + GetTypeName(targetClass, namespaces) + ">";
                     }
-                case EPropertyType.Interface: return Names.InterfaceMarshaler + "<" + GetTypeName((property as UInterfaceProperty).InterfaceClass, namespaces) + ">";
                 case EPropertyType.Object: return Names.UObjectMarshaler + "<" + GetTypeName((property as UObjectProperty).PropertyClass, namespaces) + ">";                
                 case EPropertyType.WeakObject: return Names.TWeakObjectMarshaler + "<" + GetTypeName((property as UWeakObjectProperty).PropertyClass, namespaces) + ">";
                 case EPropertyType.LazyObject: return Names.TLazyObjectMarshaler + "<" + GetTypeName((property as ULazyObjectProperty).PropertyClass, namespaces) + ">";
@@ -855,20 +853,20 @@ namespace UnrealEngine.Runtime
 
             if (property.IsFixedSizeArray)
             {
-                return "default(" + typeName + ")";
+                return "default(" + GetTypeName(property) + ")";
             }
 
             switch (property.PropertyType)
             {
                 case EPropertyType.Delegate:
                 case EPropertyType.MulticastDelegate:
-                    return "new " + typeName + "()";
+                    return "new " + GetTypeName(property) + "()";
 
                 case EPropertyType.Str:
                     return Names.FStringMarshaler_DefaultString;
 
                 default:
-                    return "default(" + typeName + ")";
+                    return "default(" + GetTypeName(property) + ")";
             }
         }
     }

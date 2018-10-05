@@ -290,6 +290,8 @@ namespace UnrealEngine.Runtime
 
         public CodeGeneratorSettings()
         {
+            GameProjMerge = new ManagedGameProjMerge();
+            EngineProjMerge = ManagedEngineProjMerge.EngineAndPluginsCombined;
             Prefixes = new TypePrefixes();
             Namespaces = new ManagedNamespaces();
             FolderEmulation = new ManagedFolderEmulation();
@@ -302,9 +304,9 @@ namespace UnrealEngine.Runtime
         public void LoadDefaults()
         {
             ModulesLocation = ManagedModulesLocation.ModulesFolder;
+            //ModulesLocation = ManagedModulesLocation.GameFolderCombineSlnProj;
 
             GameProjMerge = ManagedGameProjMerge.GameAndPlugins;
-            EngineProjMerge = ManagedEngineProjMerge.EngineAndPluginsCombined;
 
             ExportMode = CodeExportMode.Referenced;
 
@@ -351,7 +353,7 @@ namespace UnrealEngine.Runtime
             FolderEmulation.EnginePluginAssets = true;
 
             UseTypeNameAsSourceFileName = false;
-            UseFullyQualifiedTypeNames = true;
+            UseFullyQualifiedTypeNames = false;
             SortNamespaces = true;
 
             LogAssetLoading = true;

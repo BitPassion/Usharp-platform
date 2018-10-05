@@ -393,11 +393,6 @@ namespace UnrealEngine.Runtime
 
                 case UnrealModuleType.Engine:
                     namespaceName = Settings.Namespaces.Engine;
-                    if (moduleName == "CoreUObject")
-                    {
-                        // Allow CoreUObject to be redirected to a common namespace name (UnrealEngine.Runtime)
-                        namespaceName = GetEngineObjectNamespace();
-                    }
                     break;
 
                 case UnrealModuleType.EnginePlugin:
@@ -514,11 +509,14 @@ namespace UnrealEngine.Runtime
             return GetModuleNamespace(UnrealModuleType.Engine, "Runtime");
         }
 
+        private string GetEngineCoreNamespace()
+        {
+            return GetModuleNamespace(UnrealModuleType.Engine, "Core");
+        }
+
         private string GetEngineObjectNamespace()
         {
-            // Since CoreUObject types are used everywhere redirect it into the UnrealEngine.Runtime namespace
-            return GetEngineRuntimeNamespace();
-            //return GetModuleNamespace(UnrealModuleType.Engine, "CoreUObject");
+            return GetModuleNamespace(UnrealModuleType.Engine, "CoreUObject");
         }
 
         private string GetCollectionsNamespace()

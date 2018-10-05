@@ -524,18 +524,7 @@ namespace UnrealEngine.Runtime
                 case EPropertyType.Text:
                     throw new NotImplementedException();
                 case EPropertyType.Interface:
-                    {
-                        UClass unrealClassInterface = (prop as UInterfaceProperty).InterfaceClass;
-                        if (unrealClassInterface == null)
-                        {
-                            return null;
-                        }
-
-                        Type interfaceType;
-                        ManagedUnrealModuleInfo.AllKnownUnrealTypes.TryGetValue(unrealClassInterface.GetPathName(), out interfaceType);
-                        return interfaceType;
-
-                    }
+                    throw new NotImplementedException();
                 case EPropertyType.Struct:
                     {
                         UScriptStruct unrealStruct = (prop as UStructProperty).Struct;
