@@ -30,13 +30,6 @@ namespace UnrealEngine.Runtime
             get { return "FileWriterCodeManager"; }
         }
 
-        protected override bool UpdateSolutionAndProject(string slnPath, string projPath)
-        {
-            modulesSlnPath = slnPath;
-            modulesProjPath = projPath;
-            return base.UpdateSolutionAndProject(slnPath, projPath);
-        }
-
         public override bool CreateSolutionFile(string slnPath)
         {
             //Create Sln in another method since it requires project creation
@@ -45,6 +38,7 @@ namespace UnrealEngine.Runtime
 
         protected bool CreateSolutionFileFromProjectFile(string slnPath, string projPath, string projName, Guid projectGuid)
         {
+            modulesSlnPath = slnPath;
             try
             {
                 CreateFileDirectoryIfNotExists(slnPath);
@@ -59,20 +53,7 @@ namespace UnrealEngine.Runtime
 
         public override bool AddProjectFile(string slnPath, string projPath)
         {
-            //If not in engine folder and projPath is GameProjPath, 
-            //return true because we don't want to generate
-            //solution and project files for game.
-            //Module Directory is Empty By Default,
-            //So We Need to skip that in our check
-            var _slnInfo = new DirectoryInfo(slnPath);
-            if (string.IsNullOrEmpty(
-                GetEnginePathFromCurrentFolder(
-                    _slnInfo.FullName, true)) && 
-                    projPath == GameProjPath)
-            {
-                return true;
-            }
-
+            modulesProjPath = projPath;
             try
             {
                 CreateFileDirectoryIfNotExists(projPath);
@@ -153,15 +134,6 @@ namespace UnrealEngine.Runtime
 
         protected override void OnEnd()
         {
-            if(!File.Exists(modulesProjPath) || 
-                !File.Exists(modulesSlnPath) ||
-                sourceFileContentList.Count <= 0)
-            {
-                //Most likely project and solution update wasn't called at all
-                //Or Source Files weren't created
-                return;
-            }
-
             try
             {
                 Log(ELogVerbosity.Display, "Writing To Project File: " + modulesProjPath);
@@ -170,7 +142,6 @@ namespace UnrealEngine.Runtime
             catch (Exception e)
             {
                 Log(ELogVerbosity.Error, e.Message, e);
-                return;
             }
             finally
             {

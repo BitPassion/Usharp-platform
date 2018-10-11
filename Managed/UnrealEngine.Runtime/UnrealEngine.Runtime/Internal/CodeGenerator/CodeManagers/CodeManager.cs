@@ -46,8 +46,8 @@ namespace UnrealEngine.Runtime
 
             // Cache some strings we will be needing
             string projectName = Settings.GetProjectName();
-            GameSlnPath = Path.Combine(Settings.GetManagedDir(), "ManagedGameCode" + ".sln");
-            GameProjPath = Path.Combine(Settings.GetManagedDir(), "GameCode", "GameCode" + ".csproj");
+            GameSlnPath = Path.Combine(Settings.GetManagedDir(), projectName + ".sln");
+            GameProjPath = Path.Combine(Settings.GetManagedDir(), projectName + ".csproj");
 
             OnBegin();
         }
@@ -300,7 +300,7 @@ namespace UnrealEngine.Runtime
             return true;
         }
 
-        protected virtual bool UpdateSolutionAndProject(string slnPath, string projPath)
+        private bool UpdateSolutionAndProject(string slnPath, string projPath)
         {
             if (!File.Exists(slnPath) && !CreateSolutionFile(slnPath))
             {
@@ -392,12 +392,10 @@ namespace UnrealEngine.Runtime
             return _fileContents;
         }
 
-        protected string GetEnginePathFromCurrentFolder(string currentPath, bool skipModulesCheck = false)
+        protected string GetEnginePathFromCurrentFolder(string currentPath)
         {
             // Check upwards for /Epic Games/ENGINE_VERSION/Engine/Plugins/USharp/ and extract the path from there
-            string[] parentFolders = !skipModulesCheck ?
-                new string[] { "Modules", "Managed", "Binaries", "USharp", "Plugins", "Engine" } :
-                new string[] { "Managed", "Binaries", "USharp", "Plugins", "Engine" };
+            string[] parentFolders = { "Modules", "Managed", "Binaries", "USharp", "Plugins", "Engine" };
             //string currentPath = GetCurrentDirectory();
 
             DirectoryInfo dir = Directory.GetParent(currentPath);
@@ -406,11 +404,6 @@ namespace UnrealEngine.Runtime
                 //Directory Starts To Level Up If Merge Settings Isn't
                 //Combining Engine and Plugins
                 dir = dir.Parent;
-                dir = dir.Parent;
-            }
-            if (skipModulesCheck)
-            {
-                //Move up to Parent Because Modules Dir Most Likely Doesn't Exist
                 dir = dir.Parent;
             }
             for (int i = 0; i < parentFolders.Length; i++)
