@@ -46,8 +46,8 @@ namespace UnrealEngine.Runtime
 
             // Cache some strings we will be needing
             string projectName = Settings.GetProjectName();
-            GameSlnPath = Path.Combine(Settings.GetManagedDir(), projectName + ".sln");
-            GameProjPath = Path.Combine(Settings.GetManagedDir(), projectName + ".csproj");
+            GameSlnPath = Path.Combine(Settings.GetManagedDir(), "ManagedGameCode" + ".sln");
+            GameProjPath = Path.Combine(Settings.GetManagedDir(), "GameCode", "GameCode" + ".csproj");
 
             OnBegin();
         }
@@ -300,7 +300,7 @@ namespace UnrealEngine.Runtime
             return true;
         }
 
-        private bool UpdateSolutionAndProject(string slnPath, string projPath)
+        protected virtual bool UpdateSolutionAndProject(string slnPath, string projPath)
         {
             if (!File.Exists(slnPath) && !CreateSolutionFile(slnPath))
             {
@@ -358,7 +358,7 @@ namespace UnrealEngine.Runtime
             return false;
         }
 
-        protected virtual string GetProjectFileContents(string version, string projectName, bool insideEngine, out Guid projectGuid)
+        protected virtual string GetProjectFileContents(string version, string projectName, out Guid projectGuid)
         {
             string _ue4RuntimePath = Settings.EngineProjMerge ==
                 CodeGeneratorSettings.ManagedEngineProjMerge.EngineAndPluginsCombined ?
@@ -390,38 +390,6 @@ namespace UnrealEngine.Runtime
   @"<Import Project=""$(MSBuildToolsPath)\Microsoft.CSharp.targets"" />
 </Project>";
             return _fileContents;
-        }
-
-        protected string GetEnginePathFromCurrentFolder(string currentPath)
-        {
-            // Check upwards for /Epic Games/ENGINE_VERSION/Engine/Plugins/USharp/ and extract the path from there
-            string[] parentFolders = { "Modules", "Managed", "Binaries", "USharp", "Plugins", "Engine" };
-            //string currentPath = GetCurrentDirectory();
-
-            DirectoryInfo dir = Directory.GetParent(currentPath);
-            if (Settings.EngineProjMerge != CodeGeneratorSettings.ManagedEngineProjMerge.EngineAndPluginsCombined)
-            {
-                //Directory Starts To Level Up If Merge Settings Isn't
-                //Combining Engine and Plugins
-                dir = dir.Parent;
-                dir = dir.Parent;
-            }
-            for (int i = 0; i < parentFolders.Length; i++)
-            {
-                if (!dir.Exists || !dir.Name.Equals(parentFolders[i], StringComparison.OrdinalIgnoreCase))
-                {
-                    return null;
-                }
-                dir = dir.Parent;
-            }
-
-            // Make sure one of these folders exists along side the Engine folder: FeaturePacks, Samples, Templates
-            if (dir.Exists && Directory.Exists(Path.Combine(dir.FullName, "Templates")))
-            {
-                return dir.FullName;
-            }
-
-            return null;
         }
 
         protected void Log(string value, params object[] args)

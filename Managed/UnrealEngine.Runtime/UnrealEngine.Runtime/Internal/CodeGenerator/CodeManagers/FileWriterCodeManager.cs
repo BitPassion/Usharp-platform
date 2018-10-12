@@ -30,6 +30,13 @@ namespace UnrealEngine.Runtime
             get { return "FileWriterCodeManager"; }
         }
 
+        protected override bool UpdateSolutionAndProject(string slnPath, string projPath)
+        {
+            modulesSlnPath = slnPath;
+            modulesProjPath = projPath;
+            return base.UpdateSolutionAndProject(slnPath, projPath);
+        }
+
         public override bool CreateSolutionFile(string slnPath)
         {
             //Create Sln in another method since it requires project creation
@@ -38,11 +45,10 @@ namespace UnrealEngine.Runtime
 
         protected bool CreateSolutionFileFromProjectFile(string slnPath, string projPath, string projName, Guid projectGuid)
         {
-            modulesSlnPath = slnPath;
             try
             {
                 CreateFileDirectoryIfNotExists(slnPath);
-                File.WriteAllLines(slnPath, GetSolutionContents(slnPath, Path.GetFileNameWithoutExtension(slnPath), GetEnginePathFromCurrentFolder(slnPath) != null, projName, projectGuid));
+                File.WriteAllLines(slnPath, GetSolutionContents(projName, projectGuid));
             }
             catch
             {
@@ -53,13 +59,23 @@ namespace UnrealEngine.Runtime
 
         public override bool AddProjectFile(string slnPath, string projPath)
         {
-            modulesProjPath = projPath;
+            //If not in engine folder and projPath is GameProjPath, 
+            //return true because we don't want to generate
+            //solution and project files for game.
+            //Module Directory is Empty By Default,
+            //So We Need to skip that in our check
+            var _slnInfo = new DirectoryInfo(slnPath);
+            if (projPath == GameProjPath)
+            {
+                return true;
+            }
+
             try
             {
                 CreateFileDirectoryIfNotExists(projPath);
                 string _projectName = Path.GetFileNameWithoutExtension(projPath);
                 Guid _projectGUID;
-                File.WriteAllText(projPath, GetProjectFileContents("15.0", _projectName, GetEnginePathFromCurrentFolder(projPath) != null, out _projectGUID));
+                File.WriteAllText(projPath, GetProjectFileContents("15.0", _projectName, out _projectGUID));
                 //Create Sln File if It doesn't exist
                 if (!File.Exists(slnPath)){
                     CreateSolutionFileFromProjectFile(slnPath, projPath, _projectName, _projectGUID);
@@ -134,6 +150,15 @@ namespace UnrealEngine.Runtime
 
         protected override void OnEnd()
         {
+            if(!File.Exists(modulesProjPath) || 
+                !File.Exists(modulesSlnPath) ||
+                sourceFileContentList.Count <= 0)
+            {
+                //Most likely project and solution update wasn't called at all
+                //Or Source Files weren't created
+                return;
+            }
+
             try
             {
                 Log(ELogVerbosity.Display, "Writing To Project File: " + modulesProjPath);
@@ -142,6 +167,7 @@ namespace UnrealEngine.Runtime
             catch (Exception e)
             {
                 Log(ELogVerbosity.Error, e.Message, e);
+                return;
             }
             finally
             {
@@ -149,7 +175,7 @@ namespace UnrealEngine.Runtime
             }
         }
 
-        protected string[] GetSolutionContents(string slnPath, string slnName, bool insideEngine, string projName, Guid projectGuid)
+        protected string[] GetSolutionContents(string projName, Guid projectGuid)
         {
             Guid staticcsslnGuid = new Guid(@"FAE04EC0-301F-11D3-BF4B-00C04F79EFBC");
             Guid endingslnGuid = new Guid();

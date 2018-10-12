@@ -148,7 +148,6 @@ CSEXPORT void CSCONV Export_USharpClass_UpdateNativeParentConstructor(USharpClas
 		if (!((UObject*)ParentClass)->IsA(USharpClass::StaticClass()))
 		{
 			instance->NativeParentConstructor = ParentClass->ClassConstructor;
-			break;
 		}
 		ParentClass = ParentClass->GetSuperClass();
 	}
