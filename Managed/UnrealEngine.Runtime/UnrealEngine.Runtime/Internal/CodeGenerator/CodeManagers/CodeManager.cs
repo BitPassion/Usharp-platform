@@ -17,10 +17,6 @@ namespace UnrealEngine.Runtime
         public string GameSlnPath { get; private set; }
         public string GameProjPath { get; private set; }
 
-        //Used For Generating Wrappers From Native Game Code
-        public string GameNativeGenerationSlnPath { get; private set; }
-        public string GameNativeGenerationProjPath { get; private set; }
-
         protected virtual string LogCategory
         {
             get { return "CodeManager"; }
@@ -50,10 +46,8 @@ namespace UnrealEngine.Runtime
 
             // Cache some strings we will be needing
             string projectName = Settings.GetProjectName();
-            GameSlnPath = Path.Combine(Settings.GetManagedDir(), "ManagedGameCode" + ".sln");
-            GameProjPath = Path.Combine(Settings.GetManagedDir(), "GameCode", "GameCode" + ".csproj");
-            GameNativeGenerationSlnPath = Path.Combine(Settings.GetManagedDir(), "NativeCodeWrappers" + ".sln");
-            GameNativeGenerationProjPath = Path.Combine(Settings.GetManagedDir(), "Generated", "NativeCodeWrappers" + ".csproj");
+            GameSlnPath = Path.Combine(Settings.GetManagedDir(), projectName + ".sln");
+            GameProjPath = Path.Combine(Settings.GetManagedDir(), projectName + ".csproj");
 
             OnBegin();
         }
@@ -106,8 +100,8 @@ namespace UnrealEngine.Runtime
                             relativeSourceFilePath = name + ".cs";
                         }
                         sourceFilePath = Path.Combine(Settings.GetGeneratedCodeDir(), rootFolderName, relativeSourceFilePath);
-                        slnPath = GameNativeGenerationSlnPath;
-                        projPath = GameNativeGenerationProjPath;
+                        slnPath = GameSlnPath;
+                        projPath = GameProjPath;
                     }
                     break;
 
@@ -306,7 +300,7 @@ namespace UnrealEngine.Runtime
             return true;
         }
 
-        protected virtual bool UpdateSolutionAndProject(string slnPath, string projPath)
+        private bool UpdateSolutionAndProject(string slnPath, string projPath)
         {
             if (!File.Exists(slnPath) && !CreateSolutionFile(slnPath))
             {
@@ -364,70 +358,70 @@ namespace UnrealEngine.Runtime
             return false;
         }
 
-        protected virtual string[] GetProjectFileContents(string version, string projectName, out Guid projectGuid)
+        protected virtual string GetProjectFileContents(string version, string projectName, bool insideEngine, out Guid projectGuid)
         {
             string _ue4RuntimePath = Settings.EngineProjMerge ==
                 CodeGeneratorSettings.ManagedEngineProjMerge.EngineAndPluginsCombined ?
                 @"..\UnrealEngine.Runtime.dll" : @"..\..\..\UnrealEngine.Runtime.dll";
             projectGuid = Guid.NewGuid();
-            return new string[]
-            {
-                @"<?xml version=""1.0"" encoding=""utf-8""?>",
-                @"<Project ToolsVersion=""" + version + @""" DefaultTargets=""Build"" xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"">",
-                @"  <Import Project=""$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props"" Condition=""Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')"" />",
-                @"  <PropertyGroup>",
-                @"    <Configuration Condition="" '$(Configuration)' == '' "">Debug</Configuration>",
-                @"    <Platform Condition="" '$(Platform)' == '' "">AnyCPU</Platform>",
-                @"    <ProjectGuid>{" + projectGuid + @"}</ProjectGuid>",
-                @"    <OutputType>Library</OutputType>",
-                @"    <OutputPath>bin\$(Configuration)\</OutputPath>",
-                @"    <RootNamespace>" + projectName + @"</RootNamespace>",
-                @"    <AssemblyName>" + projectName + @"</AssemblyName>",
-                @"    <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>",
-                @"    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>",
-                @"  </PropertyGroup>",
-                @"  <ItemGroup>",
-                @"    <Reference Include=""" + "UnrealEngine.Runtime" + @""">",
-                @"      <HintPath>" + _ue4RuntimePath + @"</HintPath>",
-                @"    </Reference>",
-                @"  </ItemGroup>",
-                @"  <Import Project=""$(MSBuildToolsPath)\Microsoft.CSharp.targets"" />",
-                @"</Project>"
-            };
+            string _fileContents = @"<?xml version=""1.0"" encoding=""utf-8""?>
+<Project ToolsVersion=""" + version + @""" DefaultTargets=""Build"" xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"">
+  <Import Project=""$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props"" Condition=""Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')"" />
+  <PropertyGroup>
+    <Configuration Condition="" '$(Configuration)' == '' "">Debug</Configuration>
+    <Platform Condition="" '$(Platform)' == '' "">AnyCPU</Platform>
+    <ProjectGuid>{" + projectGuid + @"}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <OutputPath>bin\$(Configuration)\</OutputPath>
+    <RootNamespace>" + projectName + @"</RootNamespace>
+    <AssemblyName>" + projectName + @"</AssemblyName>
+    <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <ItemGroup>" + Environment.NewLine +
+  @"</ItemGroup>" + Environment.NewLine;
+            _fileContents +=
+@"<ItemGroup>" + Environment.NewLine +
+    @"<Reference Include=""" + "UnrealEngine.Runtime" + @""">
+      <HintPath>" + _ue4RuntimePath + @"</HintPath>
+    </Reference>
+  </ItemGroup>" + Environment.NewLine;
+            _fileContents +=
+  @"<Import Project=""$(MSBuildToolsPath)\Microsoft.CSharp.targets"" />
+</Project>";
+            return _fileContents;
         }
 
-        protected string[] GetSolutionContents(string projName, string projPath, Guid projectGuid)
+        protected string GetEnginePathFromCurrentFolder(string currentPath)
         {
-            Guid staticcsslnGuid = new Guid(@"FAE04EC0-301F-11D3-BF4B-00C04F79EFBC");
-            Guid endingslnGuid = new Guid();
-            return new string[]
+            // Check upwards for /Epic Games/ENGINE_VERSION/Engine/Plugins/USharp/ and extract the path from there
+            string[] parentFolders = { "Modules", "Managed", "Binaries", "USharp", "Plugins", "Engine" };
+            //string currentPath = GetCurrentDirectory();
+
+            DirectoryInfo dir = Directory.GetParent(currentPath);
+            if (Settings.EngineProjMerge != CodeGeneratorSettings.ManagedEngineProjMerge.EngineAndPluginsCombined)
             {
-                @"Microsoft Visual Studio Solution File, Format Version 12.00",
-                @"# Visual Studio 15",
-                @"VisualStudioVersion = 15.0.28010.2041",
-                @"MinimumVisualStudioVersion = 10.0.40219.1",
-                //Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnrealEngine", "UnrealEngine.csproj", "{9B2E6C24-CCEF-4F53-AE30-AB0C16A97A36}"
-                @"Project(""{" + staticcsslnGuid + @"}"") = """+projName+@""", """+new FileInfo(projPath).FullName+@""", ""{"+projectGuid+@"}""",
-                @"EndProject",
-                @"Global",
-                @"	GlobalSection(SolutionConfigurationPlatforms) = preSolution",
-                @"		Debug|Any CPU = Debug|Any CPU",
-                @"	EndGlobalSection",
-                @"	GlobalSection(ProjectConfigurationPlatforms) = postSolution",
-                //      {9B2E6C24-CCEF-4F53-AE30-AB0C16A97A36}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-                @"		{"+projectGuid+@"}.Debug|Any CPU.ActiveCfg = Debug|Any CPU",
-                //      {9B2E6C24-CCEF-4F53-AE30-AB0C16A97A36}.Debug|Any CPU.Build.0 = Debug|Any CPU
-                @"		{"+projectGuid+@"}.Debug|Any CPU.Build.0 = Debug|Any CPU",
-                @"	EndGlobalSection",
-                @"	GlobalSection(SolutionProperties) = preSolution",
-                @"		HideSolutionNode = FALSE",
-                @"	EndGlobalSection",
-                @"	GlobalSection(ExtensibilityGlobals) = postSolution",
-                //		SolutionGuid = {78C63B87-B5AE-4B7C-81D6-43F148AD1606}
-                @"		SolutionGuid = {"+endingslnGuid+@"}",
-                @"	EndGlobalSection",
-                @"EndGlobal"
-            };
+                //Directory Starts To Level Up If Merge Settings Isn't
+                //Combining Engine and Plugins
+                dir = dir.Parent;
+                dir = dir.Parent;
+            }
+            for (int i = 0; i < parentFolders.Length; i++)
+            {
+                if (!dir.Exists || !dir.Name.Equals(parentFolders[i], StringComparison.OrdinalIgnoreCase))
+                {
+                    return null;
+                }
+                dir = dir.Parent;
+            }
+
+            // Make sure one of these folders exists along side the Engine folder: FeaturePacks, Samples, Templates
+            if (dir.Exists && Directory.Exists(Path.Combine(dir.FullName, "Templates")))
+            {
+                return dir.FullName;
+            }
+
+            return null;
         }
 
         protected void Log(string value, params object[] args)
@@ -437,7 +431,7 @@ namespace UnrealEngine.Runtime
 
         protected void Log(ELogVerbosity verbosity, string value, params object[] args)
         {
-            FMessage.Log(verbosity, string.Format(value, args), LogCategory);
+            FMessage.Log(LogCategory, verbosity, string.Format(value, args));
         }
     }
 }

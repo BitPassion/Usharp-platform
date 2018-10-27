@@ -62,7 +62,7 @@ bool CSharpProjectGeneration::GenerateProjectVariablesFile() {
 	FString allLines;
 	FFileHelper::LoadFileToString(allLines, *projectGeneratedVariablesFullFilePath);
 
-	auto projectPath = FPaths::ProjectDir();
+	auto projectPath = FPaths::GameDir();
 	auto projectFileName = FPaths::GetBaseFilename(FPaths::GetProjectFilePath());
 	auto pluginPath = FPaths::ConvertRelativePathToFull(FPaths::Combine(pluginsBinariesDir, TEXT("..")));
 
