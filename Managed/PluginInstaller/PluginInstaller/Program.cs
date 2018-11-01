@@ -120,32 +120,24 @@ namespace PluginInstaller
                         break;
 
                     case "buildcustomsln":
-                        int _exitCode = 0;
                         if(args.Length >= 3 && 
                             !string.IsNullOrEmpty(args[1]) && args[1].Length > 4 && File.Exists(args[1]) &&
                             !string.IsNullOrEmpty(args[2]) && args[2].Length > 4 && File.Exists(args[2]))
                         {
-                            if(BuildCustomSolution(args[1], args[2]) == false)
-                            {
-                                _exitCode = 1;
-                            }
+                            BuildCustomSolution(args[1], args[2]);
                         }
                         else
                         {
                             if (args.Length >= 3)
                             {
-                                _exitCode = 2;
+                                Console.WriteLine("Couldn't Build Custom Solution Because Files Provided was Invalid. Solution: " + args[1] + " Project: " + args[2]);
                             }
                             else
                             {
-                                _exitCode = 3;
+                                Console.WriteLine("Didn't provide the correct number of arguments for buildcustomsln command");
                             }
                         }
-
-                        if (!string.IsNullOrEmpty(args[3]) && args[3] == "command")
-                        {
-                            Environment.Exit(_exitCode);
-                        }
+                        Environment.Exit(0);
                         break;
 
                     case "buildcpp":
@@ -841,11 +833,10 @@ namespace PluginInstaller
             }
         }
 
-        static bool BuildCustomSolution(string slnPath, string projPath)
+        static void BuildCustomSolution(string slnPath, string projPath)
         {
             Console.WriteLine("Attempting To Build Solution: " + slnPath);
-            bool _buildcs = BuildCs(slnPath, projPath, true, false, null);
-            if(_buildcs)
+            if(BuildCs(slnPath, projPath, true, false, null))
             {
                 Console.WriteLine("Solution Was Compiled Successfully");
             }
@@ -853,7 +844,6 @@ namespace PluginInstaller
             {
                 Console.WriteLine("There was an issue with compiling the provided solution: " + slnPath);
             }
-            return _buildcs;
         }
     }
 
