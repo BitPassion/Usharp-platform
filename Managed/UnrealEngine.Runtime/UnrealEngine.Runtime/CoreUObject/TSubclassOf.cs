@@ -43,7 +43,7 @@ namespace UnrealEngine.Runtime
         {
             if (unrealClass != null)
             {
-                if (!unrealClass.IsChildOf<T>())
+                if (!unrealClass.IsA<T>())
                 {
                     throw new Exception("TSubclassOf - tried to set class with the wrong target class type. Expected:" +
                         typeof(T) + " Actual:" + UClass.GetType(unrealClass.Address));
