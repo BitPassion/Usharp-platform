@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnrealEngine.Runtime;
 using UnrealEngine.Runtime.Native;
 
@@ -7,24 +8,48 @@ namespace UnrealEngine.Engine
 {
     public partial class UGameplayStatics : UBlueprintFunctionLibrary
     {
-        public static void GetAllActorsOfClass(UObject WorldContextObject, UClass ActorClass, out List<AActor> OutActors)
+        public static List<AActor> GetAllActorsOfClassList(UObject worldContextObject, UClass actorClass)
         {
-            using (TArrayUnsafe<IntPtr> OutActorAddresses = new TArrayUnsafe<IntPtr>())
+            using (TArrayUnsafe<AActor> actorsUnsafe = new TArrayUnsafe<AActor>())
             {
-                Native_UGameplayStatics.GetAllActorsOfClass(WorldContextObject.Address, ActorClass.Address, OutActorAddresses.Address);
-                OutActors = new List<AActor>();
-                foreach (var _address in OutActorAddresses)
-                {
-                    OutActors.Add(GCHelper.Find<AActor>(_address));
-                }
+                Native_UGameplayStatics.GetAllActorsOfClass(worldContextObject.Address, actorClass.Address, actorsUnsafe.Address);
+                return actorsUnsafe.ToList();
             }
         }
 
-        public static List<AActor> GetAllActorsOfClass<T>(UObject WorldContext)
+        public static List<T> GetAllActorsOfClassList<T>(UObject worldContextObject) where T : AActor
         {
-            List<AActor> _returnActors;
-            UGameplayStatics.GetAllActorsOfClass(WorldContext, new TSubclassOf<AActor>(UClass.GetClass<T>()), out _returnActors);
-            return _returnActors;
+            using (TArrayUnsafe<T> actorsUnsafe = new TArrayUnsafe<T>())
+            {
+                UClass unrealClass = UClass.GetClass<T>();
+                if (unrealClass != null)
+                {
+                    Native_UGameplayStatics.GetAllActorsOfClass(worldContextObject.Address, unrealClass.Address, actorsUnsafe.Address);
+                }
+                return actorsUnsafe.ToList();
+            }
+        }
+
+        public static AActor[] GetAllActorsOfClass(UObject worldContextObject, UClass actorClass)
+        {
+            using (TArrayUnsafe<AActor> actorsUnsafe = new TArrayUnsafe<AActor>())
+            {
+                Native_UGameplayStatics.GetAllActorsOfClass(worldContextObject.Address, actorClass.Address, actorsUnsafe.Address);
+                return actorsUnsafe.ToArray();
+            }
+        }
+
+        public static T[] GetAllActorsOfClass<T>(UObject worldContextObject) where T : AActor
+        {
+            using (TArrayUnsafe<T> actorsUnsafe = new TArrayUnsafe<T>())
+            {
+                UClass unrealClass = UClass.GetClass<T>();
+                if (unrealClass != null)
+                {
+                    Native_UGameplayStatics.GetAllActorsOfClass(worldContextObject.Address, unrealClass.Address, actorsUnsafe.Address);
+                }
+                return actorsUnsafe.ToArray();
+            }
         }
     }
 }
