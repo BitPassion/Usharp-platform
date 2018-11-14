@@ -16,7 +16,6 @@ namespace UnrealBuildTool.Rules
         {
             bEnableExceptions = true;
             PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
-        
             PublicIncludePaths.AddRange(
                 new string[] {
                     // ... add public include paths required here ...
@@ -122,6 +121,38 @@ namespace UnrealBuildTool.Rules
                     // Each file path is added to RuntimeDependencies which will be copied to the final packaged folder
                     CopyFilesRecursive(new DirectoryInfo(managedDir), new DirectoryInfo(managedOutputDir), true);
                 }
+
+                //Add CoreCLR/Mono Folders To RuntimeDependencies If They Exists
+                string coreCLROutputDir = Path.Combine(projectDir, "Binaries", "CoreCLR");
+                string monoOutputDir = Path.Combine(projectDir, "Binaries", "Mono");
+                string dotNetRuntimeTextFile = Path.Combine(projectDir, "Binaries", "Managed", "DotNetRuntime" + ".txt");
+                bool bCopyOverCoreCLR = false;
+                bool bCopyOverMono = false;
+
+                if(File.Exists(dotNetRuntimeTextFile))
+                {
+                    string _runtimeContent = File.ReadAllText(dotNetRuntimeTextFile);
+                    bCopyOverCoreCLR = _runtimeContent.Contains("CoreCLR");
+                    bCopyOverMono = _runtimeContent.Contains("Mono");
+
+                    //Only Add Runtime Files If TextFile Contains Runtimes
+                    if(bCopyOverCoreCLR == false && bCopyOverMono == false) return;
+
+                    //Add DotNetRuntime Text File From Project Binaries Managed Folder
+                    AddFileToRuntimeDependencies(dotNetRuntimeTextFile);
+
+                    if(Directory.Exists(coreCLROutputDir) && bCopyOverCoreCLR)
+                    {
+                        //Add CoreCLR Folder Inside Project Binaries Folder
+                        AddToRuntimeDependenciesRecursively(new DirectoryInfo(coreCLROutputDir));
+                    }
+                    
+                    if(Directory.Exists(monoOutputDir) && bCopyOverMono)
+                    {
+                        //Add Mono Folder Inside Project Binaries Folder
+                        AddToRuntimeDependenciesRecursively(new DirectoryInfo(monoOutputDir));
+                    }
+                }
             }
         }
         
@@ -185,6 +216,37 @@ namespace UnrealBuildTool.Rules
                     RuntimeDependencies.Add("$(ProjectDir)/" + relativePath, StagedFileType.NonUFS);
                 }
             }
+        }
+
+        //Add Files in Folder To Runtime Dependencies Without Copying
+        private void AddToRuntimeDependenciesRecursively(DirectoryInfo target)
+        {
+            if (!target.Exists)
+            {
+                target.Create();
+            }
+
+            foreach (DirectoryInfo dir in target.GetDirectories())
+            {
+                AddToRuntimeDependenciesRecursively(dir);
+            }
+            foreach (FileInfo file in target.GetFiles())
+            {
+                AddFileToRuntimeDependencies(file.FullName);
+            }
+        }
+
+        //Add File To Runtime Dependencies Without Copying
+        private void AddFileToRuntimeDependencies(string destFileName)
+        {
+            if(!File.Exists(destFileName))
+            {
+                Console.WriteLine("USharp-AddFileToRuntimeDependencies: Failed Adding '{0}' To Runtime.", destFileName);
+                return;
+            }
+
+            string relativePath = outputRelativeDir.MakeRelativeUri(new Uri(destFileName, UriKind.Absolute)).ToString();
+            RuntimeDependencies.Add("$(ProjectDir)/" + relativePath, StagedFileType.NonUFS);
         }
     }
 }
