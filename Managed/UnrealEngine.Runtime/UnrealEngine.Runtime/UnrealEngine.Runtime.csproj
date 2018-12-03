@@ -47,6 +47,7 @@
     <Compile Include="CoreUObject\Enums\Script.cs" />
     <Compile Include="CoreUObject\FLifetimeProperty.cs" />
     <Compile Include="Core\IPluginManager.cs" />
+    <None Include="InjectedClasses\Engine\Pawn_Injected.cs" />
     <Compile Include="InputCore\EKeys.cs" />
     <Compile Include="InputCore\FKey.cs" />
     <None Include="InjectedClasses\Engine\ActorComponent_Injected.cs" />
@@ -57,6 +58,8 @@
     <None Include="InjectedClasses\Engine\World_Injected.cs" />
     <None Include="InjectedClasses\Engine\InputComponent_Injected.cs" />
     <Compile Include="Internal\AppDomainDiagnostic.cs" />
+    <Compile Include="Internal\CodeGenerator\CodeManagers\SimpleFileParserUtility.cs" />
+    <Compile Include="Internal\CodeGenerator\TemplateProjectGenerator.cs" />
     <Compile Include="Internal\CurrentAssemblyContext.cs" />
     <Compile Include="Internal\EntryPoint.Shared.AssemblyContext.cs" />
     <Compile Include="Internal\EntryPoint.Shared.cs" />
