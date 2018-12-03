@@ -656,11 +656,6 @@ namespace UnrealEngine.Runtime
             }
         }
 
-        internal virtual void SetupPlayerInputComponent(IntPtr playerInputComponent)
-        {
-            // This is eventually implemented in APawn
-        }
-
         /// <summary>
         /// Looks for a given function name
         /// </summary>

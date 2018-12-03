@@ -27,7 +27,6 @@ CSEXPORT void CSCONV Export_VTableHacks_CallOriginal_GetLifetimeReplicatedProps(
 }
 
 typedef void (UObject::*SetupPlayerInputComponentFunc)(UInputComponent* PlayerInputComponent);
-
 CSEXPORT void CSCONV Export_VTableHacks_CallOriginal_SetupPlayerInputComponent(SetupPlayerInputComponentFunc Func, UObject* Obj, UInputComponent* PlayerInputComponent)
 {
 	(Obj->*Func)(PlayerInputComponent);
