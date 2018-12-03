@@ -303,7 +303,7 @@ namespace UnrealEngine.Runtime
         {
             ModulesLocation = ManagedModulesLocation.ModulesFolder;
 
-            GameProjMerge = ManagedGameProjMerge.Plugins;
+            GameProjMerge = ManagedGameProjMerge.GameAndPlugins;
             EngineProjMerge = ManagedEngineProjMerge.EngineAndPluginsCombined;
 
             ExportMode = CodeExportMode.Referenced;

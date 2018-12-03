@@ -1,6 +1,7 @@
 #include "CSharpLoader.h"
 #include "USharpPCH.h"
 #include "ExportedFunctions/ExportedFunctions.h"
+#include "CSharpProjectGeneration.h"
 
 #if PLATFORM_LINUX
 #include <signal.h>
@@ -724,6 +725,8 @@ bool CSharpLoader::Load(FString assemblyPath, FString customArgs, FString loader
 		LogLoaderError(FString::Printf(TEXT("Failed to load .NET runtimes (%s)"), *desiredRuntimeStr));
 		return false;
 	}
+	
+	CSharpProjectGeneration::GenerateProject();
 
 	const TCHAR* entryPointClass = TEXT("UnrealEngine.EntryPoint");
 	const TCHAR* entryPointMethod = TEXT("DllMain");

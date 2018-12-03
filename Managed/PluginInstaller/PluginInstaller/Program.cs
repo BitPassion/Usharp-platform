@@ -121,12 +121,8 @@ namespace PluginInstaller
                         break;
 
                     case "buildcpp":
-                        {
-                            Stopwatch cppCompileTime = new Stopwatch();
-                            cppCompileTime.Start();
-                            CompileCpp(args);
-                            Console.WriteLine("done (" + cppCompileTime.Elapsed + ")");
-                        }
+                        CompileCpp(args);
+                        Console.WriteLine("done");
                         break;
 
                     case "copyruntime":
@@ -551,20 +547,6 @@ namespace PluginInstaller
             // Since we are compiling from within the engine plugin folder make sure to use temp changed .plugin_temp file
             pluginPath = tempExistingPluginFile;
 
-            // Create *another* temp directory where we will copy just the C++ source files over. Otherwise the build tool will copy
-            // all of the content files before it builds (which might be a lot of data)
-            string tempCopyDir = Path.Combine(usharpAppData, "BuildTemp2");
-            string tempCopyPluginPath = Path.Combine(tempCopyDir, Path.GetFileName(pluginPath));
-            if (!Directory.Exists(tempCopyDir))
-            {
-                Directory.CreateDirectory(tempCopyDir);
-            }
-            CopyFile(pluginPath, tempCopyPluginPath, true);
-            CopyFilesRecursive(new DirectoryInfo(Path.Combine(pluginDir, "Source")), new DirectoryInfo(Path.Combine(tempCopyDir, "Source")), true);
-            CopyFilesRecursive(new DirectoryInfo(Path.Combine(pluginDir, "Config")), new DirectoryInfo(Path.Combine(tempCopyDir, "Config")), true);
-            // The Intermediate directory doesn't seem to improve compile times so don't bother copying it for now (saves around 100MB of data copying 2x)
-            //CopyFilesRecursive(new DirectoryInfo(Path.Combine(pluginDir, "Intermediate")), new DirectoryInfo(Path.Combine(tempCopyDir, "Intermediate")), true);
-
             try
             {
                 using (Process process = new Process())
@@ -575,7 +557,7 @@ namespace PluginInstaller
                         UseShellExecute = false,
 
                         // The -Platform arg is ignored? It instead compiles based on whitelisted/blacklisted? (or for all platforms if no list)
-                        Arguments = string.Format("BuildPlugin -Plugin=\"{0}\" -Package=\"{1}\" -Rocket -Platform=Win64", tempCopyPluginPath, outputDir)
+                        Arguments = string.Format("BuildPlugin -Plugin=\"{0}\" -Package=\"{1}\" -Rocket -Platform=Win64", pluginPath, outputDir)
                     };
                     process.Start();
                     process.WaitForExit();
@@ -616,25 +598,14 @@ namespace PluginInstaller
                 {
                     try
                     {
-                        if (Directory.Exists(outputDir))
+                        if (!Directory.Exists(outputDir))
                         {
-                            Directory.Delete(outputDir, true);
+                            Directory.Delete(outputDir);
                         }
                     }
                     catch
                     {
                     }
-                }
-
-                try
-                {
-                    if (Directory.Exists(tempCopyDir))
-                    {
-                        Directory.Delete(tempCopyDir, true);
-                    }
-                }
-                catch
-                {
                 }
             }
         }

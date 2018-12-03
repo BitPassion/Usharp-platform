@@ -338,7 +338,7 @@ namespace UnrealEngine.Runtime
             {
                 if (invalidAssemblyChars.Contains(module.AssemblyName[i]))
                 {
-                    moduleName[i] = '-';
+                    moduleName[i] = '_';
                 }
             }
             module.ModuleName = moduleName.ToString();
