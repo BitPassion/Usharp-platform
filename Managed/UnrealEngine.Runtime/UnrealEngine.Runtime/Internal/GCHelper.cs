@@ -1,13 +1,4 @@
-﻿// ARRAY_GC means that an array will be used instead of a dictionary for lookups. An array may be faster
-// when there are more objects known to GCHelper.
-// TODO: Use UObjectCreateListeners / UObjectDeleteListeners and more closely map the internal ids? The current
-//       setup may result in two UObject instances having the same internal id
-//#define ARRAY_GC
-
-// The fastest way to implement GCHelper would be to fork UE4 and add a member to UObjectBase which is a 
-// void* / GCHandle pointing to the C# instance
-
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -20,17 +11,8 @@ namespace UnrealEngine.Runtime
 {
     public static class GCHelper
     {
-#if ARRAY_GC
-        private static List<UObjectRef> References = new List<UObjectRef>();
-#else
         // <nativeAddress, UObjectRef>
         private static Dictionary<IntPtr, UObjectRef> References = new Dictionary<IntPtr, UObjectRef>();
-#endif
-
-        /// <summary>
-        /// UObjectBase::InternalIndex offset
-        /// </summary>
-        private static int objectInternalIndexOffset;
 
         /// <summary>
         /// Used internally to avoid duplicate Initialize() calls
@@ -65,6 +47,20 @@ namespace UnrealEngine.Runtime
             }
         }
 
+        /// <summary>
+        /// Gets all UObject references in GCHelper
+        /// </summary>
+        /// <returns>A dictionary containing the native UObject address as the key and the UObjectRef as the value</returns>
+        public static Dictionary<IntPtr, UObjectRef> GetObjects()
+        {
+            return References;
+        }
+
+        public static bool Contains(IntPtr native)
+        {
+            return References.ContainsKey(native);
+        }
+
         public static T FindInterface<T>(IntPtr native) where T : class, IInterface
         {
             UObject obj = Find(native);
@@ -86,7 +82,7 @@ namespace UnrealEngine.Runtime
             return objRef == null ? null : objRef.Managed;
         }
 
-        public static unsafe UObjectRef FindRef(IntPtr native)
+        public static UObjectRef FindRef(IntPtr native)
         {
             CheckAvailable();
 
@@ -95,20 +91,6 @@ namespace UnrealEngine.Runtime
                 return null;
             }
 
-#if ARRAY_GC            
-            int objectInternalIndex = *(int*)(native + objectInternalIndexOffset);
-            UObjectRef objRef = References.Count > objectInternalIndex ? References[objectInternalIndex] : null;
-            if (objRef == null)
-            {
-                IntPtr gcHandlePtr = Add(native);
-                if (gcHandlePtr != IntPtr.Zero)
-                {
-                    GCHandle gcHandle = GCHandle.FromIntPtr(gcHandlePtr);
-                    objRef = (UObjectRef)gcHandle.Target;
-                }
-            }
-            return objRef;
-#else
             UObjectRef objRef;
             if (!References.TryGetValue(native, out objRef))
             {
@@ -120,7 +102,6 @@ namespace UnrealEngine.Runtime
                 }
             }
             return objRef;
-#endif
         }
 
         public static UObjectRef FindExistingRef(UObject obj)
@@ -138,19 +119,10 @@ namespace UnrealEngine.Runtime
             Native_GCHelper.Remove(native);
         }
 
-        private static unsafe IntPtr OnAdd(IntPtr native)
+        private static IntPtr OnAdd(IntPtr native)
         {
             UObjectRef objRef = null;
-            int objectInternalIndex = *(int*)(native + objectInternalIndexOffset);
-#if ARRAY_GC
-            while (References.Count <= objectInternalIndex)
-            {
-                References.Add(null);
-            }
-            if (References[objectInternalIndex] == null)
-#else
             if (!References.TryGetValue(native, out objRef))
-#endif
             {
                 bool isKnownType;
                 Type type = UClass.GetFirstKnownType(native, out isKnownType, false);
@@ -205,15 +177,21 @@ namespace UnrealEngine.Runtime
                     // where interfaces inherit from other interfaces.
                     type = typeof(UInterface);
                 }
-                objRef = objRefPool.New(native, type, isKnownType, objectInternalIndex);
-#if ARRAY_GC
-                References[objectInternalIndex] = objRef;
-#else
+                objRef = objRefPool.New(native, type, isKnownType);
                 References.Add(native, objRef);
-#endif
                 return GCHandle.ToIntPtr(objRef.ManagedHandle);
             }
             return GCHandle.ToIntPtr(objRef.ManagedHandle);
+        }
+
+        private static void OnAddExisting(IntPtr native, IntPtr gcHandlePtr)
+        {
+            if (!References.ContainsKey(native))
+            {
+                GCHandle gcHandle = GCHandle.FromIntPtr(gcHandlePtr);
+                UObjectRef objRef = (UObjectRef)gcHandle.Target;
+                References.Add(native, objRef);
+            }
         }
 
         private static void OnRemove(IntPtr gcHandlePtr)
@@ -226,11 +204,7 @@ namespace UnrealEngine.Runtime
             objRef.Managed.ReleaseInjectedInterfaces();
             objRef.Managed.objRef = null;// This will make UObject.IsDestroyed true
             objRef.Managed.Address = IntPtr.Zero;// Reset the address
-#if ARRAY_GC
-            References[objRef.InternalIndex] = null;
-#else
             References.Remove(objRef.Native);
-#endif
             gcHandle.Free();
 
             // Return the objRef to the pool (this will also reset the objRef state back to empty)
@@ -258,17 +232,18 @@ namespace UnrealEngine.Runtime
 
         // Hold onto the delegates to avoid them from being garbage collected
         private static Native_GCHelper.Del_Add onAdd;
+        private static Native_GCHelper.Del_AddExisting onAddExisting;
         private static Native_GCHelper.Del_Remove onRemove;
 
         internal static void OnNativeFunctionsRegistered()
         {
             onAdd = new Native_GCHelper.Del_Add(OnAdd);
+            onAddExisting = new Native_GCHelper.Del_AddExisting(OnAddExisting);
             onRemove = new Native_GCHelper.Del_Remove(OnRemove);
 
             Native_GCHelper.Set_OnAdd(onAdd);
+            Native_GCHelper.Set_OnAddExisting(onAddExisting);
             Native_GCHelper.Set_OnRemove(onRemove);
-
-            objectInternalIndexOffset = Native_GCHelper.GetInternalIndexOffset();
 
             FCoreUObjectDelegates.PostGarbageCollect.Bind(OnPostGarbageCollect);
         }
@@ -281,18 +256,7 @@ namespace UnrealEngine.Runtime
             Dictionary<Type, bool> typesRequiringUnloadOrReload = new Dictionary<Type, bool>();
 
             List<IntPtr> allUnloadOrReloadReferences = new List<IntPtr>();
-#if ARRAY_GC
-            Dictionary<IntPtr, UObjectRef> references = new Dictionary<IntPtr, UObjectRef>();
-            foreach (UObjectRef objRef in References)
-            {
-                if (objRef != null)
-                {
-                    references.Add(objRef.Native, objRef);
-                }
-            }
-#else
             Dictionary<IntPtr, UObjectRef> references = new Dictionary<IntPtr, UObjectRef>(References);
-#endif
             Dictionary<IntPtr, UObjectRef> newReferences = new Dictionary<IntPtr, UObjectRef>(references);
             while (newReferences.Count > 0)
             {
@@ -329,16 +293,6 @@ namespace UnrealEngine.Runtime
                     }
                 }
                 newReferences.Clear();
-#if ARRAY_GC
-                foreach (UObjectRef objRef in References)
-                {
-                    if (objRef != null && !references.ContainsKey(objRef.Native))
-                    {
-                        references.Add(objRef.Native, objRef);
-                        newReferences.Add(objRef.Native, objRef);
-                    }
-                }
-#else
                 foreach (KeyValuePair<IntPtr, UObjectRef> reference in References)
                 {
                     if (!references.ContainsKey(reference.Key))
@@ -347,7 +301,6 @@ namespace UnrealEngine.Runtime
                         newReferences.Add(reference.Key, reference.Value);
                     }
                 }
-#endif
             }
 
             // Save all of the objects which we called OnAssemblyUnload on so that we can call
@@ -412,7 +365,7 @@ namespace UnrealEngine.Runtime
         {
             private Stack<UObjectRef> pool = new Stack<UObjectRef>();
 
-            public UObjectRef New(IntPtr native, Type type, bool isKnownType, int internalIndex)
+            public UObjectRef New(IntPtr native, Type type, bool isKnownType)
             {
                 UObjectRef result = null;
                 if (pool.Count > 0)
@@ -423,7 +376,7 @@ namespace UnrealEngine.Runtime
                 {
                     result = new UObjectRef();
                 }
-                result.Initialize(native, type, isKnownType, internalIndex);
+                result.Initialize(native, type, isKnownType);
                 return result;
             }
 
@@ -444,20 +397,14 @@ namespace UnrealEngine.Runtime
         public UObject Managed;
         public bool IsKnownType;
         public uint Id;
-        /// <summary>
-        /// UObjectBase::InternalIndex
-        /// </summary>
-        public int InternalIndex;
         public event UObjectRefDestroyedHandler OnDestroyed;
 
         private static uint sid = 1;
 
-        public void Initialize(IntPtr native, Type type, bool isKnownType, int internalIndex)
+        public void Initialize(IntPtr native, Type type, bool isKnownType)
         {
             // Something is still holding on this obj ref
             Debug.Assert(OnDestroyed == null);
-
-            InternalIndex = internalIndex;
 
             // If this loops around things could potentially break down if some objects have
             // extremely long lifetime and others have a short lifetime (this id is mostly just
